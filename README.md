@@ -1,6 +1,6 @@
-# zig-shock
 
-## SHOCK protocol
+
+## SHOCK protocol (zig implementation)
  - S - Streaming 
  - H - High-speed 
  - O - Optimized (for) 
