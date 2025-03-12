@@ -37,40 +37,24 @@ pub const SHOCKPackageParser = struct {
 test "SHOCKPackageParser parse test" {
     const testing = std.testing;
 
-    // Create test data based on the new header structure
-    // Bits of first byte:
-    // message_len_duble: true (bit 7)
-    // next_flag: false (bit 6)
-    // message_num_len: 2 (bits 5-4)
-    // object_len: 1 (bits 3-2)
-    // method_len: true (bit 1)
-    // next_meta_byte: true (bit 0)
-    // = 10100111 = 0xA7
-
-    // Bits of second byte:
-    // session_len: 1 (bits 7-6)
-    // process_len: 2 (bits 5-1)
-    // reserved: false (bit 0)
-    // = 01000100 = 0x44
-
+    // Создаем тестовые данные с корректной структурой заголовка
     var test_data = [_]u8{
-        0xA7, // body meta byte
-        0x44, // context meta byte
-        0x00, 0x0F, // message length: 15 bytes total
+        0xE7, // body meta byte: 11100111 (next_flag = true, т.к. есть второй метабайт)
+        0x44, // context meta byte: 01000100
+        0x00, 0x0F, // message length: 15 bytes total (12 заголовок + 3 тело)
         0x12, 0x34, // message_num: 0x1234
         0x56, // object: 0x56
         0x78, // method: 0x78
         0x9A, // session: 0x9A
         0xBC, 0xDE, // process: 0xBCDE
-        0x01, 0x02,
-        0x03, // body
+        0x01, 0x02, 0x03, // body (3 байта)
     };
 
     const pkg = try SHOCKPackageParser.parse(&test_data);
 
-    // Verify parsed values
+    // Проверяем корректные значения
     try testing.expect(pkg.body_meta.message_len_duble);
-    try testing.expect(!pkg.body_meta.next_flag);
+    try testing.expect(pkg.body_meta.next_flag); // Изменено на true
     try testing.expectEqual(@as(u8, 2), pkg.body_meta.message_num_len);
     try testing.expectEqual(@as(u8, 1), pkg.body_meta.object_len);
     try testing.expect(pkg.body_meta.method_len);
