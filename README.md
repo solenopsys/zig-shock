@@ -13,4 +13,18 @@
 </div>
 
 
- 
+ #### Meta Header 2 bytes  
+indicates the header structure and the length of the fields  
+
+**First Byte:**  
+- 1 bit — message size (1 or 2 bytes).  
+- 1 bit — Next flag.  
+- 2 bits — length of the message number in the stream (0–3 bytes). Supports up to 16 gigabytes with a message size of 1024.  
+- 2 bits — length of the destination Object field (0–3 bytes).  
+- 1 bit — length of the destination Method field (1 byte).  
+- 1 bit — flag indicating the presence of the Second Byte.  
+
+**Second Byte:**  
+- 2 bits — length of the Session field (0–3 bytes).  
+- 5 bits — length of the Process field (0–16 bytes).  
+- 1 bit — reserved (can be used in long streams over 16 gigabytes or in processes).
