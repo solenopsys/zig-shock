@@ -12,8 +12,10 @@
   <img src="logo.svg" alt="SHOCK Protocol Logo" width="400"/>
 </div>
 
+ 
+### Video
+https://www.youtube.com/embed/LhdJaWM2ykc
 
-<iframe width="720" height="480" src="https://www.youtube.com/embed/LhdJaWM2ykc" frameborder="0" allowfullscreen=""></iframe>
 
 
 ### Performance
