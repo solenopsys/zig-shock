@@ -14,7 +14,7 @@
 
  
 ### Video
-https://www.youtube.com/embed/LhdJaWM2ykc
+https://www.youtube.com/watch?v=LhdJaWM2ykc
 
 
 
