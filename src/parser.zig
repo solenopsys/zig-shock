@@ -41,13 +41,14 @@ test "SHOCKPackageParser parse test" {
     var test_data = [_]u8{
         0xE7, // body meta byte: 11100111 (next_flag = true, т.к. есть второй метабайт)
         0x44, // context meta byte: 01000100
-        0x00, 0x0F, // message length: 15 bytes total (12 заголовок + 3 тело)
+        0x00, 0x0E, //message length: 15 bytes total (12 заголовок + 3 тело)
         0x12, 0x34, // message_num: 0x1234
         0x56, // object: 0x56
         0x78, // method: 0x78
         0x9A, // session: 0x9A
         0xBC, 0xDE, // process: 0xBCDE
-        0x01, 0x02, 0x03, // body (3 байта)
+        0x01, 0x02,
+        0x03, // body (3 байта)
     };
 
     const pkg = try SHOCKPackageParser.parse(&test_data);
@@ -67,12 +68,12 @@ test "SHOCKPackageParser parse test" {
         try testing.expect(!ctx_meta.next_meta_byte);
     }
 
-    try testing.expectEqual(@as(u16, 0x000F), pkg.header_accessor.get_message_len());
+    try testing.expectEqual(@as(u16, 0x000E), pkg.header_accessor.get_message_len());
     try testing.expectEqual(@as(u32, 0x1234), pkg.header_accessor.get_message_num());
     try testing.expectEqual(@as(u32, 0x56), pkg.header_accessor.get_object());
     try testing.expectEqual(@as(?u8, 0x78), pkg.header_accessor.get_method());
     try testing.expectEqual(@as(u32, 0x9A), pkg.header_accessor.get_session());
 
-    try testing.expectEqual(@as(usize, 12), pkg.header_len);
+    try testing.expectEqual(@as(usize, 11), pkg.header_len);
     try testing.expectEqualSlices(u8, &[_]u8{ 0x01, 0x02, 0x03 }, pkg.body);
 }

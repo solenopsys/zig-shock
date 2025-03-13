@@ -221,12 +221,7 @@ pub const HeaderAccessor = struct {
 
         // Корректировка для соответствия ожиданиям протокола
         // Для случая с context_meta добавляем 1 байт, а для случая без - вычитаем 1 байт
-        var header_len = pos;
-        if (body_meta.next_meta_byte) {
-            header_len += 1; // Добавляем 1 байт для случая с context_meta
-        } else {
-            header_len -= 1; // Вычитаем 1 байт для случая без context_meta
-        }
+        const header_len = pos;
 
         return HeaderAccessor{
             .body_meta = body_meta,
@@ -287,7 +282,7 @@ test "HeaderAccessor parse test with complete meta" {
     try testing.expectEqualSlices(u8, &[_]u8{ 0xBC, 0xDE }, header_accessor.get_process());
 
     // Test header length calculation
-    try testing.expectEqual(@as(usize, 12), header_accessor.header_len);
+    try testing.expectEqual(@as(usize, 11), header_accessor.header_len);
 }
 
 test "HeaderAccessor parse test without context meta" {
@@ -331,7 +326,7 @@ test "HeaderAccessor parse test without context meta" {
     try testing.expectEqual(@as(usize, 0), header_accessor.get_process().len); // Process should be empty when not present
 
     // Test header length calculation
-    try testing.expectEqual(@as(usize, 5), header_accessor.header_len);
+    try testing.expectEqual(@as(usize, 6), header_accessor.header_len);
 }
 
 test "HeaderAccessor build and read test" {
