@@ -4,7 +4,8 @@ const SHOCKPackage = @import("types.zig").SHOCKPackage;
 const ha = @import("header/header-accessor.zig");
 
 pub const SHOCKPackageParser = struct {
-    pub fn parse(data: []const u8) !SHOCKPackage {
+    pub fn parse(self: *SHOCKPackageParser, data: []const u8) !SHOCKPackage {
+        _ = self;
         const header_accessor = try ha.HeaderAccessor.read(data);
         const header_len = header_accessor.header_len;
 
@@ -22,6 +23,10 @@ pub const SHOCKPackageParser = struct {
             .header_len = header_len,
             .total_len = message_len,
         };
+    }
+
+    pub fn init() SHOCKPackageParser {
+        return SHOCKPackageParser{};
     }
 };
 
@@ -42,7 +47,9 @@ test "SHOCKPackageParser parse test" {
         0x03, // body (3 байта)
     };
 
-    const pkg = try SHOCKPackageParser.parse(&test_data);
+    var shock_parser = SHOCKPackageParser.init();
+
+    const pkg = try shock_parser.parse(&test_data);
 
     // Проверяем корректные значения
     try testing.expect(pkg.body_meta.message_len_duble);

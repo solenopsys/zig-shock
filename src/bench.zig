@@ -121,8 +121,10 @@ pub fn main() !void {
     // ==== Тестирование парсера ====
     try stdout.print("Запуск parse benchmark...\n", .{});
 
+    var shock_parser = parser.SHOCKPackageParser.init();
+
     // Разогрев парсера с гарантированным использованием результата
-    const warmup_pkg = try parser.SHOCKPackageParser.parse(prealloc_buffer[0..pkg_sizes[0]]);
+    const warmup_pkg = try shock_parser.parse(prealloc_buffer[0..pkg_sizes[0]]);
     PREVENT_OPTIMIZE_PARSE +%= preventOptimization(warmup_pkg.header_len);
     PREVENT_OPTIMIZE_PARSE +%= preventOptimization(warmup_pkg.body.len);
 
@@ -133,7 +135,7 @@ pub fn main() !void {
         const actual_size = pkg_sizes[i];
         const buffer_slice = prealloc_buffer[i * max_package_size .. i * max_package_size + actual_size];
 
-        const parsed_pkg = try parser.SHOCKPackageParser.parse(buffer_slice);
+        const parsed_pkg = try shock_parser.parse(buffer_slice);
 
         // Гарантированно используем результаты
         PREVENT_OPTIMIZE_PARSE +%= preventOptimization(parsed_pkg.header_len);

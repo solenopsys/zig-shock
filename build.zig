@@ -17,7 +17,7 @@ pub fn build(b: *std.Build) void {
 
     const exe = b.addExecutable(.{
         .name = "zig-shock",
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = b.path("src/bench.zig"),
         .target = target,
         .optimize = optimize,
     });
