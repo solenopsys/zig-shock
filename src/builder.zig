@@ -4,6 +4,7 @@ const bm = @import("header/body-meta.zig");
 const cm = @import("header/context-meta.zig");
 const ha = @import("header/header-accessor.zig");
 
+const SHOCKPackage = @import("types.zig").SHOCKPackage;
 const SHOCKPackageParser = @import("parser.zig").SHOCKPackageParser;
 
 pub const SHOCKPackageBuilder = struct {
@@ -134,8 +135,9 @@ pub const SHOCKPackageBuilder = struct {
         // Предварительный расчет размера пакета для выделения буфера
         const process_len = if (process) |proc| @min(proc.len, 16) else 0;
         const needs_context_meta = session != null or process != null;
-        const meta_bytes_len = if (needs_context_meta) 2 else 1;
-        const message_len_size = if (body.len > 0xFF) 2 else 1;
+        const meta_bytes_len: usize = @as(usize, if (needs_context_meta) 2 else 1);
+
+        const message_len_size: usize = @as(usize, if (body.len > 0xFF) 2 else 1);
 
         // Расчет размера для предварительного выделения памяти
         // Используем максимально возможные размеры полей для упрощения
@@ -153,6 +155,21 @@ pub const SHOCKPackageBuilder = struct {
         // можно было бы изменить его размер, но для эффективности не делаем это
 
         return buffer[0..actual_len];
+    }
+
+    pub fn buildFromPackage(self: *SHOCKPackageBuilder, package: SHOCKPackage) ![]u8 {
+        // Extract necessary values from the package
+        const message_num = package.header_accessor.get_message_num();
+        const object = package.header_accessor.get_object();
+        const method = package.header_accessor.get_method();
+        const session = package.header_accessor.get_session();
+        const process = package.header_accessor.get_process();
+
+        // We don't have direct access to process bytes, so we'll pass null for now
+        // If needed, the actual implementation might need to extract process bytes differently
+
+        // Use the existing build method to create a new package
+        return self.build(package.body, message_num, object, method, session, process);
     }
 };
 
@@ -176,7 +193,8 @@ test "SHOCKPackageBuilder build test" {
     const package = buffer[0..pkg_len];
 
     // Parse the package to verify it was built correctly
-    const pkg = try SHOCKPackageParser.parse(package);
+    var parser = SHOCKPackageParser.init();
+    const pkg = try parser.parse(package);
 
     // Verify parsed values
     try testing.expect(pkg.body_meta.message_len_duble == false);
@@ -217,8 +235,8 @@ test "SHOCKPackageBuilder without context meta" {
 
     const package = buffer[0..pkg_len];
 
-    // Parse the package to verify it was built correctly
-    const pkg = try SHOCKPackageParser.parse(package);
+    var parser = SHOCKPackageParser.init();
+    const pkg = try parser.parse(package);
 
     // Verify parsed values
     try testing.expect(!pkg.body_meta.next_meta_byte); // No context meta
@@ -233,4 +251,64 @@ test "SHOCKPackageBuilder without context meta" {
     try testing.expectEqual(@as(?u8, 0x78), pkg.header_accessor.get_method());
 
     try testing.expectEqualSlices(u8, &body, pkg.body);
+}
+
+test "SHOCKPackageBuilder buildFromPackage test" {
+    const testing = std.testing;
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var builder = SHOCKPackageBuilder.init(allocator);
+
+    // First, create an original package
+    const body = [_]u8{ 0x01, 0x02, 0x03 };
+    const process_data = [_]u8{ 0xBC, 0xDE };
+
+    const original_pkg_bytes = try builder.build(&body, 0x1234, 0x56, 0x78, 0x9A, &process_data);
+    defer allocator.free(original_pkg_bytes);
+
+    // Parse the original package
+    var parser = SHOCKPackageParser.init();
+    const original_pkg = try parser.parse(original_pkg_bytes);
+
+    // Now use buildFromPackage to create a new package from the parsed one
+    const new_pkg_bytes = try builder.buildFromPackage(original_pkg);
+    defer allocator.free(new_pkg_bytes);
+
+    // Parse the new package
+    const new_pkg = try parser.parse(new_pkg_bytes);
+
+    // Verify both packages have the same content
+    try testing.expectEqual(original_pkg.total_len, new_pkg.total_len);
+    try testing.expectEqual(original_pkg.header_len, new_pkg.header_len);
+
+    // Compare metadata
+    try testing.expectEqual(original_pkg.body_meta.message_len_duble, new_pkg.body_meta.message_len_duble);
+    try testing.expectEqual(original_pkg.body_meta.next_flag, new_pkg.body_meta.next_flag);
+    try testing.expectEqual(original_pkg.body_meta.message_num_len, new_pkg.body_meta.message_num_len);
+    try testing.expectEqual(original_pkg.body_meta.object_len, new_pkg.body_meta.object_len);
+    try testing.expectEqual(original_pkg.body_meta.method_len, new_pkg.body_meta.method_len);
+    try testing.expectEqual(original_pkg.body_meta.next_meta_byte, new_pkg.body_meta.next_meta_byte);
+
+    // Compare context meta if present
+    if (original_pkg.context_meta != null) {
+        try testing.expect(new_pkg.context_meta != null);
+        try testing.expectEqual(original_pkg.context_meta.?.session_len, new_pkg.context_meta.?.session_len);
+        try testing.expectEqual(original_pkg.context_meta.?.process_len, new_pkg.context_meta.?.process_len);
+    } else {
+        try testing.expectEqual(original_pkg.context_meta, new_pkg.context_meta);
+    }
+
+    // Compare header values
+    try testing.expectEqual(original_pkg.header_accessor.get_message_num(), new_pkg.header_accessor.get_message_num());
+    try testing.expectEqual(original_pkg.header_accessor.get_object(), new_pkg.header_accessor.get_object());
+    try testing.expectEqual(original_pkg.header_accessor.get_method(), new_pkg.header_accessor.get_method());
+    try testing.expectEqual(original_pkg.header_accessor.get_session(), new_pkg.header_accessor.get_session());
+
+    // Compare body content
+    try testing.expectEqualSlices(u8, original_pkg.body, new_pkg.body);
+
+    // Compare raw bytes to ensure everything is identical
+    try testing.expectEqualSlices(u8, original_pkg_bytes, new_pkg_bytes);
 }
