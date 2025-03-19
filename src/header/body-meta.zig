@@ -62,8 +62,6 @@ test "BodyMetaHeader write and parse" {
     try testing.expect(!parsed.next_meta_byte);
 
     try testing.expectEqual(body_meta, parsed);
-
-    std.debug.print("\nMeta byte: 0b{b:0>8}\n", .{meta});
 }
 
 test "BodyMetaHeader write and parse with opposite values" {
@@ -91,6 +89,4 @@ test "BodyMetaHeader write and parse with opposite values" {
     try testing.expect(parsed.next_meta_byte);
 
     try testing.expectEqual(body_meta, parsed);
-
-    std.debug.print("\nTest 2 meta byte: 0b{b:0>8}\n", .{meta});
 }

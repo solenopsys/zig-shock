@@ -1,6 +1,6 @@
 const std = @import("std");
-const parser = @import("parser.zig");
-const builder = @import("builder.zig");
+const parser = @import("pack-parser.zig");
+const builder = @import("pack-builder.zig");
 
 // Глобальные переменные для предотвращения оптимизации
 pub var PREVENT_OPTIMIZE_BUILD: u64 = 0;
@@ -87,11 +87,11 @@ pub fn main() !void {
     var pkg_sizes = try allocator.alloc(usize, iterations);
     defer allocator.free(pkg_sizes);
 
-    // ==== Тестирование build_into ====
-    try stdout.print("Запуск build_into benchmark...\n", .{});
+    // ==== Тестирование build ====
+    try stdout.print("Запуск build benchmark...\n", .{});
 
     // Разогрев с гарантированным использованием результата
-    const warmup_size = try shock_builder.build_into(prealloc_buffer[0..max_package_size], &[_]u8{1}, 0, 0, 0, 0, &[_]u8{});
+    const warmup_size = try shock_builder.build(prealloc_buffer[0..max_package_size], &[_]u8{1}, 0, 0, 0, 0, &[_]u8{});
     _ = preventOptimization(warmup_size);
 
     // Запуск таймера
@@ -102,7 +102,7 @@ pub fn main() !void {
         const pkg_data = test_packages.items[i];
         const buffer_slice = prealloc_buffer[i * max_package_size .. (i + 1) * max_package_size];
 
-        pkg_sizes[i] = try shock_builder.build_into(buffer_slice, pkg_data.body, pkg_data.message_num, pkg_data.object, pkg_data.method, pkg_data.session, pkg_data.process);
+        pkg_sizes[i] = try shock_builder.build(buffer_slice, pkg_data.body, pkg_data.message_num, pkg_data.object, pkg_data.method, pkg_data.session, pkg_data.process);
 
         // Накапливаем результат и делаем его volatile
         PREVENT_OPTIMIZE_BUILD +%= preventOptimization(pkg_sizes[i]);

@@ -45,8 +45,6 @@ test "ContextMeta write and parse" {
     try testing.expect(parsed.next_meta_byte);
 
     try testing.expectEqual(context_meta, parsed);
-
-    std.debug.print("\nMeta byte: 0b{b:0>8}\n", .{meta});
 }
 
 test "ContextMeta write and parse with different values" {
@@ -68,6 +66,4 @@ test "ContextMeta write and parse with different values" {
     try testing.expect(!parsed.next_meta_byte);
 
     try testing.expectEqual(context_meta, parsed);
-
-    std.debug.print("\nTest 2 meta byte: 0b{b:0>8}\n", .{meta});
 }

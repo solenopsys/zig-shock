@@ -5,7 +5,7 @@ const cm = @import("header/context-meta.zig");
 const ha = @import("header/header-accessor.zig");
 
 const SHOCKPackage = @import("types.zig").SHOCKPackage;
-const SHOCKPackageParser = @import("parser.zig").SHOCKPackageParser;
+const SHOCKPackageParser = @import("pack-parser.zig").SHOCKPackageParser;
 
 pub const SHOCKPackageBuilder = struct {
     allocator: std.mem.Allocator,
@@ -16,7 +16,7 @@ pub const SHOCKPackageBuilder = struct {
         };
     }
 
-    pub fn build_into(self: *SHOCKPackageBuilder, buffer: []u8, body: []const u8, message_num: ?u32, object: ?u32, method: ?u8, session: ?u32, process: ?[]const u8) !usize {
+    pub fn build(self: *SHOCKPackageBuilder, buffer: []u8, body: []const u8, message_num: ?u32, object: ?u32, method: ?u8, session: ?u32, process: ?[]const u8) !usize {
         _ = self;
         // Determine required sizes for all fields
         const message_num_len: u8 = if (message_num) |num| blk: {
@@ -129,47 +129,33 @@ pub const SHOCKPackageBuilder = struct {
         return total_len;
     }
 
-    // Вспомогательная функция для создания пакета с выделением памяти
-    // (оставлена для обратной совместимости)
-    pub fn build(self: *SHOCKPackageBuilder, body: []const u8, message_num: ?u32, object: ?u32, method: ?u8, session: ?u32, process: ?[]const u8) ![]u8 {
-        // Предварительный расчет размера пакета для выделения буфера
-        const process_len = if (process) |proc| @min(proc.len, 16) else 0;
-        const needs_context_meta = session != null or process != null;
-        const meta_bytes_len: usize = @as(usize, if (needs_context_meta) 2 else 1);
+    pub fn buildFromPackage(self: *SHOCKPackageBuilder, package: SHOCKPackage) ![]u8 {
+        // Calculate buffer size needed
+        const buffer_size = package.total_len;
 
-        const message_len_size: usize = @as(usize, if (body.len > 0xFF) 2 else 1);
-
-        // Расчет размера для предварительного выделения памяти
-        // Используем максимально возможные размеры полей для упрощения
-        const max_header_size = meta_bytes_len + message_len_size + 3 + 3 + 1 + 3 + process_len;
-        const total_len = max_header_size + body.len;
-
-        // Выделяем буфер с запасом
-        var buffer = try self.allocator.alloc(u8, total_len);
+        // Allocate buffer for the new package
+        const buffer = try self.allocator.alloc(u8, buffer_size);
         errdefer self.allocator.free(buffer);
 
-        // Используем оптимизированный метод build_into
-        const actual_len = try self.build_into(buffer, body, message_num, object, method, session, process);
-
-        // Если размер фактически заполненного буфера меньше выделенного,
-        // можно было бы изменить его размер, но для эффективности не делаем это
-
-        return buffer[0..actual_len];
-    }
-
-    pub fn buildFromPackage(self: *SHOCKPackageBuilder, package: SHOCKPackage) ![]u8 {
         // Extract necessary values from the package
         const message_num = package.header_accessor.get_message_num();
         const object = package.header_accessor.get_object();
         const method = package.header_accessor.get_method();
         const session = package.header_accessor.get_session();
-        const process = package.header_accessor.get_process();
 
-        // We don't have direct access to process bytes, so we'll pass null for now
-        // If needed, the actual implementation might need to extract process bytes differently
+        // Get process bytes from the original package
+        const process = if (package.context_meta != null and package.context_meta.?.process_len > 0)
+            package.header_accessor.get_process()
+        else
+            null;
 
-        // Use the existing build method to create a new package
-        return self.build(package.body, message_num, object, method, session, process);
+        // Build the new package into the buffer
+        const total_len = try self.build(buffer, package.body, message_num, object, method, session, process);
+
+        // Ensure we used exactly the amount of space we expected
+        std.debug.assert(total_len == buffer_size);
+
+        return buffer;
     }
 };
 
@@ -187,7 +173,7 @@ test "SHOCKPackageBuilder build test" {
     // Выделяем буфер с запасом
     var buffer: [64]u8 = undefined;
 
-    const pkg_len = try builder.build_into(&buffer, &body, 0x1234, 0x56, 0x78, 0x9A, &process_data);
+    const pkg_len = try builder.build(&buffer, &body, 0x1234, 0x56, 0x78, 0x9A, &process_data);
 
     // Создаем срез буфера только с действительными данными
     const package = buffer[0..pkg_len];
@@ -231,7 +217,7 @@ test "SHOCKPackageBuilder without context meta" {
     // Используем буфер на стеке
     var buffer: [32]u8 = undefined;
 
-    const pkg_len = try builder.build_into(&buffer, &body, 0x1234, 0x56, 0x78, null, null);
+    const pkg_len = try builder.build(&buffer, &body, 0x1234, 0x56, 0x78, null, null);
 
     const package = buffer[0..pkg_len];
 
@@ -265,8 +251,10 @@ test "SHOCKPackageBuilder buildFromPackage test" {
     const body = [_]u8{ 0x01, 0x02, 0x03 };
     const process_data = [_]u8{ 0xBC, 0xDE };
 
-    const original_pkg_bytes = try builder.build(&body, 0x1234, 0x56, 0x78, 0x9A, &process_data);
-    defer allocator.free(original_pkg_bytes);
+    // Fix: Create a buffer for the original package
+    var buffer: [64]u8 = undefined;
+    const pkg_len = try builder.build(&buffer, &body, 0x1234, 0x56, 0x78, 0x9A, &process_data);
+    const original_pkg_bytes = buffer[0..pkg_len];
 
     // Parse the original package
     var parser = SHOCKPackageParser.init();
