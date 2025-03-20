@@ -15,8 +15,8 @@ pub const Object = struct {
 
 pub const Handler = struct {
     processor: *Processor,
-    send: *const fn (data: Packet) void,
-    onMessage: *const fn (data: Packet) void,
+    send: *const fn (ctx: *anyopaque, data: Packet) void,
+    onMessage: *const fn (ctx: *anyopaque, data: Packet) void,
 };
 
 pub const Processor = struct {
@@ -60,7 +60,7 @@ pub const Processor = struct {
 
         if (self.handlers.capacity() > 0 and self.handlers.contains(method_id)) {
             const handler_ptr = self.handlers.get(method_id).?;
-            handler_ptr.onMessage(data);
+            handler_ptr.onMessage(ctx, data);
         }
     }
 };
@@ -124,11 +124,13 @@ pub const PrintHandler = struct {
         self.allocator.destroy(self);
     }
 
-    fn sendImpl(data: Packet) void {
+    fn sendImpl(ctx: *anyopaque, data: Packet) void {
+        _ = ctx;
         std.debug.print("Sending data: {s}\n", .{data});
     }
 
-    fn onMessageImpl(data: Packet) void {
+    fn onMessageImpl(ctx: *anyopaque, data: Packet) void {
+        _ = ctx;
         std.debug.print("Handler for method processing packet\n", .{});
         std.debug.print("Data: {s}\n", .{data});
     }
@@ -162,12 +164,14 @@ pub const MockHandler = struct {
         self.allocator.destroy(self);
     }
 
-    fn sendImplFn(data: Packet) void {
+    fn sendImplFn(ctx: *anyopaque, data: Packet) void {
+        _ = ctx;
         _ = data;
         // В реальном тесте здесь можно было бы сохранять данные
     }
 
-    fn onMessageImplFn(data: Packet) void {
+    fn onMessageImplFn(ctx: *anyopaque, data: Packet) void {
+        _ = ctx;
         // Здесь у нас статический метод, который не может обращаться к self
         // В реальном тесте нужно подумать, как сохранять состояние
         std.debug.print("Mock handler received packet: {s}\n", .{data});
