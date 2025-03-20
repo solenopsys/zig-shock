@@ -16,7 +16,7 @@ pub const Object = struct {
 pub const Handler = struct {
     processor: *Processor,
     send: *const fn (ctx: *anyopaque, data: Packet) void,
-    onMessage: *const fn (ctx: *anyopaque, data: Packet) void,
+    onMessage: ?*const fn (ctx: *anyopaque, data: Packet) void,
 };
 
 pub const Processor = struct {
@@ -60,7 +60,9 @@ pub const Processor = struct {
 
         if (self.handlers.capacity() > 0 and self.handlers.contains(method_id)) {
             const handler_ptr = self.handlers.get(method_id).?;
-            handler_ptr.onMessage(ctx, data);
+            if (handler_ptr.onMessage) |onMessageFn| {
+                onMessageFn(ctx, data);
+            }
         }
     }
 };
