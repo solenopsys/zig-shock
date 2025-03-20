@@ -5,21 +5,21 @@ const Parser = @import("./pack-parser.zig").SHOCKPackageParser;
 const Builder = @import("./pack-builder.zig").SHOCKPackageBuilder;
 const SHOCKPackage = @import("./pack-parser.zig").SHOCKPackage;
 
-const Packet = []const u8;
+pub const Packet = []const u8;
 
-const Object = struct {
+pub const Object = struct {
     context: *anyopaque,
     send: *const fn (ctx: *anyopaque, data: Packet) void,
     onMessage: ?*const fn (ctx: *anyopaque, data: Packet) void,
 };
 
-const Handler = struct {
+pub const Handler = struct {
     processor: *Processor,
     send: *const fn (data: Packet) void,
     onMessage: *const fn (data: Packet) void,
 };
 
-const Processor = struct {
+pub const Processor = struct {
     object: Object,
     handlers: std.AutoHashMap(u8, *Handler),
     router: *Router,
@@ -65,7 +65,7 @@ const Processor = struct {
     }
 };
 
-const Router = struct {
+pub const Router = struct {
     objects: std.AutoHashMap(u32, *Object),
     allocator: std.mem.Allocator,
     parser: Parser,
@@ -98,7 +98,7 @@ const Router = struct {
     }
 };
 
-const PrintHandler = struct {
+pub const PrintHandler = struct {
     handler: Handler,
     allocator: std.mem.Allocator,
     processor: *Processor,
@@ -135,7 +135,7 @@ const PrintHandler = struct {
 };
 
 // Создаем mock-объект для тестирования
-const MockHandler = struct {
+pub const MockHandler = struct {
     handler: Handler,
     allocator: std.mem.Allocator,
     processor: *Processor,
